@@ -1,0 +1,12 @@
+# env
+.env
+
+# python
+__pycache__/
+*.pyc
+
+# dumps
+dumps/*.sql
+
+# docker
+postgres_data

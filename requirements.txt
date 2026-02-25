@@ -1,2 +1,4 @@
 asyncpg
 python-dotenv
+httpx
+beautifulsoup4

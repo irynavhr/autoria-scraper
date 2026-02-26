@@ -24,17 +24,15 @@ def extract_car_links(html: str):
 
     links = []
 
-    # всі <a> теги з посиланнями
     for a in soup.find_all("a", class_ = "m-link-ticket", href=True):
         href = a["href"]
 
-        # AutoRia карточки авто виглядають так:
-        # https://auto.ria.com/auto_....
         if "/auto_" in href and "auto.ria.com" in href:
             links.append(href)
 
     print(f"Found {len(links)} links before deduplication")
-    # прибираємо дублікати
+
+    # deduplicate links
     links = list(set(links))
 
     print(f"Found {len(links)} car links")
@@ -106,7 +104,7 @@ def parse_car_page(html: str, url: str):
     if seller_tag:
         username = seller_tag.get_text(strip=True)
 
-    # ---------------- PHONE ----------------!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # ---------------- PHONE ----------------!!!
     phone_number = None
     parent = soup.find(id="sellerInfo")
     if parent:
@@ -252,12 +250,12 @@ async def scrape_all_pages(conn, start_url, max_pages=50):
         html = await fetch_start_page(url)
         links = extract_car_links(html)
 
-        # якщо машин більше нема — виходимо
+        # if no links found - stop scraping
         if not links:
             print("No more cars found. Stopping.")
             break
 
-        # паралельна обробка машин зі сторінки
+        # process cars concurrently
         tasks = [process_car(link, conn) for link in links]
         await asyncio.gather(*tasks)
 

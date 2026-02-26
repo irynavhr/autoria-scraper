@@ -22,7 +22,7 @@ def extract_car_links(html: str):
     links = []
 
     # всі <a> теги з посиланнями
-    for a in soup.find_all("a", href=True):
+    for a in soup.find_all("a", class_ = "m-link-ticket", href=True):
         href = a["href"]
 
         # AutoRia карточки авто виглядають так:
@@ -39,18 +39,39 @@ def extract_car_links(html: str):
     return links
 
 
+# async def fetch_car_page(url: str):
+#     async with httpx.AsyncClient() as client:
+#         response = await client.get(url)
+
+#     print(f"Opened car page: {response.status_code}")
+
+#     return response.text
+
 async def fetch_car_page(url: str):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(url)
 
-    print(f"Opened car page: {response.status_code}")
+        print(f"Opened car page: {response.status_code}")
 
-    return response.text
+        if response.status_code != 200:
+            print(f"Skip {url} - status {response.status_code}")
+            return None
+
+        return response.text
+
+    except httpx.RequestError as e:
+        print(f"Request error for {url}: {e}")
+        return None
+
 
 
 
 
 def parse_car_page(html: str, url: str):
+    if html is None:
+        print(f"No HTML to parse for {url}")
+        return None
     soup = BeautifulSoup(html, "html.parser")
 
     # ---------------- TITLE ----------------
@@ -80,22 +101,27 @@ def parse_car_page(html: str, url: str):
 
     # ---------------- USERNAME ----------------
     username = None
+    seller_tag = None
     parent = soup.find(id="sellerInfoUserName")
-    seller_tag = parent.find("span", class_="common-text ws-pre-wrap titleM")
+    if parent:
+        seller_tag = parent.find("span", class_="common-text ws-pre-wrap titleM")
     if seller_tag:
         username = seller_tag.get_text(strip=True)
 
     # ---------------- PHONE ----------------!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     phone_number = None
     parent = soup.find(id="sellerInfo")
-    parent = parent.find("div", class_="button-main mt-12")
-    phone_tag = parent.find("span", class_="common-text ws-pre-wrap action")
+    if parent:
+        parent = parent.find("div", class_="button-main mt-12")
+    phone_tag = None
+    if parent:
+        phone_tag = parent.find("span", class_="common-text ws-pre-wrap action")
     if phone_tag:
         text = phone_tag.get_text(strip=True)
         phone_number = re.search(r"\d+", text).group()
         if phone_number[:2] != "38":
             phone_number = "38" + phone_number
-        phone_number = int(phone_number)
+        # phone_number = int(phone_number)
    
 
     # ---------------- IMAGE ----------------
@@ -156,5 +182,8 @@ def parse_car_page(html: str, url: str):
     print("\nParsed car:")
     for k, v in data.items():
         print(k, "=", v)
+
+
+    
 
     return data

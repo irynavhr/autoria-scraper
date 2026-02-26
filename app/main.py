@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import os
 from dotenv import load_dotenv
-from scraper import fetch_start_page, extract_car_links, parse_car_page, fetch_car_page
+from scraper import START_URL,  scrape_all_pages
 load_dotenv()
 
 
@@ -43,46 +43,75 @@ async def connect_to_db():
 
     raise Exception("Database is not available")
 
-async def insert_car(conn, car: dict):
-    # check if car already exists in DB
-    existing = await conn.fetchrow(
-        "SELECT id FROM cars WHERE url = $1",
-        car["url"]
-    )
+# async def insert_car(conn, car: dict):
+#     # check if car already exists in DB
+#     existing = await conn.fetchrow(
+#         "SELECT id FROM cars WHERE url = $1",
+#         car["url"]
+#     )
 
-    # if exists - skip
-    if existing:
-        print("Car already exists, skip")
-        return
+#     # if exists - skip
+#     if existing:
+#         print("Car already exists, skip")
+#         return
     
-    # else - insert
-    await conn.execute("""
-        INSERT INTO cars (
-            url,
-            title,
-            price_usd,
-            odometer,
-            username,
-            phone_number,
-            image_url,
-            images_count,
-            car_number,
-            car_vin
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    """,
-        car.get("url"),
-        car.get("title"),
-        car.get("price_usd"),
-        car.get("odometer"),
-        car.get("username"),
-        car.get("phone_number"),
-        car.get("image_url"),
-        car.get("images_count"),
-        car.get("car_number"),
-        car.get("car_vin"),
-    )
-    print("Inserted new car")
+#     # else - insert
+#     await conn.execute("""
+#         INSERT INTO cars (
+#             url,
+#             title,
+#             price_usd,
+#             odometer,
+#             username,
+#             phone_number,
+#             image_url,
+#             images_count,
+#             car_number,
+#             car_vin
+#         )
+#         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+#     """,
+#         car.get("url"),
+#         car.get("title"),
+#         car.get("price_usd"),
+#         car.get("odometer"),
+#         car.get("username"),
+#         car.get("phone_number"),
+#         car.get("image_url"),
+#         car.get("images_count"),
+#         car.get("car_number"),
+#         car.get("car_vin"),
+#     )
+#     print("Inserted new car")
+
+# async def process_car(each, conn):
+#     try:
+#         car_html = await fetch_car_page(each)
+#         car_data = parse_car_page(car_html, each)
+#         await insert_car(conn, car_data)
+#     except Exception as e:
+#         print(f"Error processing {each}: {e}")
+
+# async def scrape_all_pages(conn, start_url):
+#     page = 1
+
+#     while True:
+#         url = f"{start_url}?page={page}"
+#         print(f"Scraping page {page}")
+
+#         html = await fetch_start_page(url)
+#         links = extract_car_links(html)
+
+#         # якщо машин більше нема — виходимо
+#         if not links:
+#             print("No more cars found. Stopping.")
+#             break
+
+#         # паралельна обробка машин зі сторінки
+#         tasks = [process_car(link, conn) for link in links]
+#         await asyncio.gather(*tasks)
+
+#         page += 1
 
 async def main():
     # connect to DB
@@ -95,8 +124,8 @@ async def main():
 
     
     # parcing test
-    html = await fetch_start_page()
-    links = extract_car_links(html)
+    # html = await fetch_start_page()
+    # links = extract_car_links(html)
 
     # print(links[:10])  
 
@@ -106,18 +135,15 @@ async def main():
     # car_html = await fetch_car_page(first_car_url)
     # car_data = parse_car_page(car_html, first_car_url)
     
-    for each in links:
-        try:
-            car_html = await fetch_car_page(each)
-            car_data = parse_car_page(car_html, each)
-            try:
-                await insert_car(conn, car_data)
-            except Exception as e:
-                print(f"Error inserting {each} into DB: {e}")
-                continue
-        except Exception as e:
-            print(f"Error processing {each}: {e}")
-            continue
+    # process all cars concurrently
+    # tasks = []
+    # for each in links:
+    #     tasks.append(process_car(each, conn))
+    # await asyncio.gather(*tasks)
+
+    await scrape_all_pages(conn, START_URL)
+
+
 
     # print all rows from DB
     rows = await conn.fetch("SELECT * FROM cars")
